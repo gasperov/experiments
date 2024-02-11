@@ -2,9 +2,7 @@
 
 #include <atomic>
 
-struct RefCountBase;
 struct WeakReg;
-void ReleaseWeakPointerRef(RefCountBase* b) noexcept;
 
 struct RefCountBase {
     RefCountBase(const RefCountBase& r) = delete;
@@ -14,33 +12,32 @@ struct RefCountBase {
 
     RefCountBase() noexcept = default;
     virtual ~RefCountBase() = default;
-    virtual void delete_this() noexcept {
+    virtual void DeleteThisObject() noexcept {
         delete this;
     }
     void IncRefCount() noexcept {
-        ref_count_.fetch_add(2);
+        ref_count_.fetch_add(1);
     }
     void DecRefCount() noexcept {
-        auto v = ref_count_.fetch_sub(2) - 2;
-        if (v < 2) {
-            if (v == 1) {
-                ReleaseWeakPointerRef(this);
-            }
-            delete_this();
+        auto v = ref_count_.fetch_sub(1) - 1;
+        if (v == 0) {
+            DeleteThisObject();
         }
     }
-    void SetWeak() noexcept {
-        auto v = ref_count_.load();
-        while (((v&1) == 0) && !ref_count_.compare_exchange_strong(v,v|1)) {}
-    }
-    bool StillValid() noexcept {
-        return ref_count_ >= 2;
+    bool IncIfNotZero() noexcept {
+        for(int i = 0; i < 10; i++) {
+            auto v = ref_count_.load();
+            if (v == 0) {
+                return false;
+            }
+            if (ref_count_.compare_exchange_weak(v, v + 1)) {
+                return true;
+            }
+        }
+        return false;
     }
     unsigned int GetRefCount() const noexcept {
-        return ref_count_ / 2;
-    }
-    bool IsWeak() const noexcept {
-        return (ref_count_.load()&1) == 1;
+        return ref_count_;
     }
 private:
     std::atomic_uint ref_count_{0};
@@ -67,9 +64,9 @@ struct RefCount {
     }
     RefCount& operator=(const RefCount& r) noexcept {
         if (r.obj != obj) {
-            auto o = obj; obj = r.obj;
-            if (o) o->DecRefCount();
-            if (obj) obj->IncRefCount();
+            Reset();
+            if (r.obj) r.obj->IncRefCount();
+            obj = r.obj;
         }
         return *this;
     }
@@ -101,8 +98,7 @@ struct RefCount {
     inline bool operator==(const RefCount& other) const {
         return obj == other.obj;
     }    
-    inline T* get_usafe() const noexcept { return obj; }
-protected:
-friend WeakReg;
+    inline T* GetUnsafe() const noexcept { return obj; }
+
     T* obj;
 };

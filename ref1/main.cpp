@@ -12,9 +12,8 @@ struct example: RefCountBase {
 
 int main() {
     {
-        auto& reg = WeakReg::inst();
         RefCount<example> nu(nullptr);
-        reg.Add(nu);
+        WeakReg::Add(nu);
 
         RefCount<example> ref(new example);
         std::cout << "exam ref: " << ref.GetRefCount() << "\n";
@@ -23,12 +22,12 @@ int main() {
         std::cout << "exam ref: " << ref.GetRefCount() << "\n";
 
         {
-            auto weak = reg.Add(ref);
+            auto weak = WeakReg::Add(ref);
         }
 
-        auto weak = reg.Add(ref);
+        auto weak = WeakReg::Add(ref);
         {
-            auto str = reg.Get<example>(weak);
+            auto str = WeakReg::Get<example>(weak);
             std::cout << "exam ref: " << ref.GetRefCount() << "\n";
             str->call();
         }
@@ -36,7 +35,7 @@ int main() {
         ref.Reset();
         std::cout << "... released ...\n";
         {
-            auto str = reg.Get<example>(weak);
+            auto str = WeakReg::Get<example>(weak);
             if (str) {
                 std::cout << "wtf\n";
             }
@@ -47,10 +46,9 @@ int main() {
     // Test case 1: Adding and getting a valid object
     {
         struct MyObject : RefCountBase {};
-        WeakReg weakReg;
         RefCount<MyObject> obj(new MyObject);
-        RefCount<WeakReg::WeakRef> weakRef = weakReg.Add(obj);
-        RefCount<MyObject> retrievedObj = weakReg.Get<MyObject>(weakRef);
+        RefCount<WeakReg::WeakRef> weakRef = WeakReg::Add(obj);
+        RefCount<MyObject> retrievedObj = WeakReg::Get<MyObject>(weakRef);
         assert(retrievedObj == obj);
     }
 
@@ -59,10 +57,9 @@ int main() {
         struct MyObject : RefCountBase {
             bool IsValid() const { return false; }
         };
-        WeakReg weakReg;
         RefCount<MyObject> obj(new MyObject);
-        RefCount<WeakReg::WeakRef> weakRef = weakReg.Add(obj);
-        RefCount<MyObject> retrievedObj = weakReg.Get<MyObject>(weakRef);
+        RefCount<WeakReg::WeakRef> weakRef = WeakReg::Add(obj);
+        RefCount<MyObject> retrievedObj = WeakReg::Get<MyObject>(weakRef);
         assert(retrievedObj);
     }
 
@@ -70,15 +67,15 @@ int main() {
     {
         struct MyObject : RefCountBase {
             bool released = false;
-            void Release() noexcept override { released = true; }
+            void delete_this() noexcept override { released = true; }
         };
-        WeakReg weakReg;
-        RefCount<MyObject> obj(new MyObject);
-        RefCount<WeakReg::WeakRef> weakRef = weakReg.Add(obj);
-        weakReg.Release(obj.get_usafe());
-        assert(obj->released);
-        RefCount<MyObject> retrievedObj = weakReg.Get<MyObject>(weakRef);
-        assert(retrievedObj);
+        auto x = new MyObject;
+        RefCount<MyObject> obj(x);
+        RefCount<WeakReg::WeakRef> weakRef = WeakReg::Add(obj);
+        obj.Reset();
+        assert(x->released);
+        RefCount<MyObject> retrievedObj = WeakReg::Get<MyObject>(weakRef);
+        assert(retrievedObj == nullptr);
     }
     return 0;
 }
