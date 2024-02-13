@@ -1,3 +1,5 @@
+
+
 # C++ Dojo: Experiments
 
 Welcome, noble code warrior, to the C++ Dojo! This repository is your training ground, where you will encounter the mysterious art of intrusive weak references, among other C++ challenges. 
@@ -17,6 +19,10 @@ This is your trusty katana, a template class for managing references to objects 
 ### WeakReg
 
 This is your secret weapon, a class for managing weak references. It'll let you add an object to the registry, get a strong reference from a weak one, and release a weak reference.
+
+### WeakRef
+
+This is the improved version of weak reference counting. It provides a more efficient way of managing weak references.
 
 ## The Path of the Code Warrior
 
